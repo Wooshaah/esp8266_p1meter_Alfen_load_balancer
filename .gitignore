@@ -36,3 +36,5 @@
 
 # PlatformIo
 .pio/
+
+load_balancer/secrets.h
