@@ -467,11 +467,10 @@ void processLine(int len)
 
 float readActualP1MeterConsumption()
 {
-  // read_p1_hardwareserial();
-  // auto actual_consumption_in_watts = ACTUAL_CONSUMPTION * 1000.0;
-  // auto actual_returndelivery_in_watts = ACTUAL_RETURNDELIVERY * 1000.0;
-  // return actual_consumption_in_watts - actual_returndelivery_in_watts;
-  return 1000;
+  read_p1_hardwareserial();
+  auto actual_consumption_in_watts = ACTUAL_CONSUMPTION * 1000.0;
+  auto actual_returndelivery_in_watts = ACTUAL_RETURNDELIVERY * 1000.0;
+  return actual_consumption_in_watts - actual_returndelivery_in_watts;
 }
 
 #pragma endregion P1_METER
