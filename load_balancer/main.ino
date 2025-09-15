@@ -254,11 +254,11 @@ bool decode_telegram(int len)
   int endChar = FindCharInArrayRev(telegram, '!', len);
   bool validCRCFound = false;
 
-  for (int cnt = 0; cnt < len; cnt++)
-  {
-    Serial.print(telegram[cnt]);
-  }
-  Serial.print("\n");
+  // for (int cnt = 0; cnt < len; cnt++)
+  // {
+  //   Serial.print(telegram[cnt]);
+  // }
+  // Serial.print("\n");
 
   if (startChar >= 0)
   {
@@ -276,10 +276,10 @@ bool decode_telegram(int len)
     messageCRC[4] = 0; // * Thanks to HarmOtten (issue 5)
     validCRCFound = (strtol(messageCRC, NULL, 16) == currentCRC);
 
-    if (validCRCFound)
-      Serial.println(F("CRC Valid!"));
-    else
-      Serial.println(F("CRC Invalid!"));
+    // if (validCRCFound)
+    //   Serial.println(F("CRC Valid!"));
+    // else
+    //   Serial.println(F("CRC Invalid!"));
 
     currentCRC = 0;
   }
@@ -456,21 +456,39 @@ void processLine(int len)
   telegram[len + 1] = 0;
   yield();
 
-  bool result = decode_telegram(len + 1);
-
-  if (!result)
-  {
-    Serial.println("Telegram decode failed");
-    ESP.restart();
-  }
+  decode_telegram(len + 1);
 }
 
+int skips = 0;
 float readActualP1MeterConsumption()
 {
   read_p1_hardwareserial();
-  auto actual_consumption_in_watts = ACTUAL_CONSUMPTION * 1000.0;
-  auto actual_returndelivery_in_watts = ACTUAL_RETURNDELIVERY * 1000.0;
-  return actual_consumption_in_watts - actual_returndelivery_in_watts;
+
+  if (ACTUAL_CONSUMPTION < 0)
+  {
+    Serial.println("ACTUAL_CONSUMPTION not set yet");
+    skips++;
+    return -1;
+  }
+
+  if (ACTUAL_RETURNDELIVERY < 0)
+  {
+    Serial.println("ACTUAL_RETURNDELIVERY not set yet");
+    skips++;
+    return -1;
+  }
+
+  if (skips > 0)
+  {
+    Serial.println("Skipped " + String(skips) + " measurements");
+    ESP.restart();
+  }
+
+  auto total = ACTUAL_CONSUMPTION - ACTUAL_RETURNDELIVERY;
+
+  ACTUAL_CONSUMPTION = -1;
+  ACTUAL_RETURNDELIVERY = -1;
+  return total;
 }
 
 #pragma endregion P1_METER
@@ -533,6 +551,13 @@ void balanceLoad()
 void loop()
 {
   auto p1meter_consumption = readActualP1MeterConsumption();
+  if (p1meter_consumption < 0)
+  {
+    Serial.println("Failed to read P1 meter consumption, skipping this round");
+    delay(1000);
+    return;
+  }
+
   Serial.println("P1 meter consumption: " + String(p1meter_consumption) + " W");
 
   p1meter_consumptions_in_watt[measurement_index] = p1meter_consumption;
@@ -543,6 +568,6 @@ void loop()
     balanceLoad();
   }
 
-  Serial.println("sleeping 10 seconds...");
-  delay(100);
+  Serial.println("sleeping 1 second...");
+  delay(1000);
 }

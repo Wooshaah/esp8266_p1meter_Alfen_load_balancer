@@ -12,8 +12,8 @@
 
 char telegram[P1_MAXLINELENGTH];
 
-long ACTUAL_CONSUMPTION;
-long ACTUAL_RETURNDELIVERY;
+long ACTUAL_CONSUMPTION = -1;
+long ACTUAL_RETURNDELIVERY = -1;
 
 unsigned int currentCRC = 0;
 
