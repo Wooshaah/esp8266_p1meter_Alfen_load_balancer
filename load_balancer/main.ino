@@ -119,6 +119,19 @@ void toUint16Array(int value, uint16_t result[2])
   result[1] = value & 0xFFFF;         // Low 16 bits
 }
 
+float intToFloat(int value)
+{
+  return static_cast<float>(value);
+}
+
+void floatToUint16Array(float value, uint16_t result[2])
+{
+  uint32_t asInt;
+  memcpy(&asInt, &value, sizeof(asInt));
+  result[0] = (asInt >> 16) & 0xFFFF; // High 16 bits
+  result[1] = asInt & 0xFFFF;         // Low 16 bits
+}
+
 #pragma endregion HELPERS
 
 #pragma region MODBUS
@@ -164,15 +177,25 @@ void setChargerCurrent(int set_current)
     return;
   }
 
+  float currentF = intToFloat(set_current);
   uint16_t current[2];
-  toUint16Array(set_current, current);
+  floatToUint16Array(currentF, current);
 
-  // auto transaction = mb.writeHreg(charger, 1210, current, 2, cb, CHARGER_UNIT_ID);
-  // while (mb.isTransaction(transaction))
-  // {
-  //   mb.task();
-  //   delay(10);
-  // }
+  auto transaction = mb.writeHreg(charger, 1210, current, 2, cb, CHARGER_UNIT_ID);
+  while (mb.isTransaction(transaction))
+  {
+    mb.task();
+    delay(10);
+  }
+
+  uint16_t current_read[2];
+  auto transaction2 = mb.readHreg(charger, 1210, current_read, 2, cb, CHARGER_UNIT_ID);
+  while (mb.isTransaction(transaction2))
+  {
+    mb.task();
+    delay(10);
+  }
+  Serial.println("Charger current set to " + String(current_read[0]) + "  " + String(current_read[1]) + " A");
 }
 
 #pragma endregion MODBUS
@@ -531,17 +554,17 @@ void balanceLoad()
   Serial.println("Charger consumption: " + String(charger_consumption) + " W");
 
   auto power_consumption_without_charger = average_consumption - charger_consumption;
-  Serial.println("Power consumption without charger: " + String(power_consumption_without_charger) + " W");
+  Serial.println("Power consumption without charger (average from grid - charger): " + String(power_consumption_without_charger) + " W");
 
   auto available_power = CAPACITEITSTARIEF_IN_WATT - power_consumption_without_charger;
-  Serial.println("Available power for charger: " + String(available_power) + " W");
+  Serial.println("Available power for charger (CAPACITEITSTARIEF_IN_WATT - power consumption without charger): " + String(available_power) + " W");
 
   auto amps = getAmpsForAvailablePower(available_power);
-  Serial.println("Amps for available power: " + String(amps) + " A");
+  Serial.println("Amps for available power (floor(available power / sqrt(3) * 230)); max 32: " + String(amps) + " A");
 
   // If amps is below MIN_CHARGER_CURRENT_IN_AMPERE, set to 4, because 0 unlocks charging port
   auto set_amps = max(amps, 4);
-  Serial.println("Setting charger to " + String(set_amps) + " A");
+  Serial.println("Setting charger to (minimum value 4) " + String(set_amps) + " A");
 
   setChargerCurrent(set_amps);
 }
